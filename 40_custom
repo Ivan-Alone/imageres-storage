@@ -1,0 +1,12 @@
+#!/bin/sh
+exec tail -n +3 $0
+# Entries are LOWER, DO NOT edit upper
+
+
+menuentry "Debian Network Installer / Resque" {
+  set isofile="/mini.iso"
+  echo "Using ${isofile} as Boot RAMDisk..."
+  loopback loop $isofile
+  linux (loop)/linux priority=low vga=788 ---
+  initrd (loop)/initrd.gz
+}
