@@ -37,8 +37,8 @@ mv 3proxy.cfg /etc/3proxy/
 systemctl restart 3proxy
 
 # Debug report
-
+echo
 ip addr
-
+echo
 echo "HTTP(s) Proxy: "$user":"$pass"@"$external_ip":23230"
 echo "Socks5 Proxy must be running on socks5://"$user":"$pass"@"$external_ip":23232"
