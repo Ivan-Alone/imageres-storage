@@ -8,9 +8,13 @@ external_ip=$(curl ifconfig.me 2>/dev/null)
 echo $external_ip $(hostname) >> /etc/hosts
 
 # Adding .bashrc for root
-users=$(ls -1d /home/*)
-IFS=$'\n' read -rd '' -a default_user <<<"$users"
-cp /home/$default_user/.bashrc /root/
+# Old method - copying from default user
+# users=$(ls -1d /home/*)
+# IFS=$'\n' read -rd '' -a default_user <<<"$users"
+# cp /home/$default_user/.bashrc /root/
+# New method
+wget https://raw.githubusercontent.com/Ivan-Alone/imageres-storage/master/bashrc_root_debian
+mv bashrc_root_debian /root/.bashrc
 
 # Installing 3proxy
 wget https://github.com/z3APA3A/3proxy/releases/download/0.9.3/3proxy-0.9.3.x86_64.deb
