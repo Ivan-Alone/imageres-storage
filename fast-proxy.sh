@@ -1,7 +1,7 @@
 #!/bin/bash
 apt update
 apt -y upgrade
-apt -y install wget nano php php-curl php-mbstring php-curl php-gd php-mysqli php-fileinfo php-sockets php-exif php-xml
+apt -y install wget nano sudo php php-curl php-mbstring php-curl php-gd php-mysqli php-fileinfo php-sockets php-exif php-xml
 
 external_ip=$(curl ifconfig.me 2>/dev/null)
 
@@ -37,6 +37,7 @@ cfg="${cfg//%PASSWORD%/"$pass"}"
 echo "$cfg" > 3proxy.cfg
 
 mv 3proxy.cfg /etc/3proxy/
+mkdir /var/run/3proxy/
 
 systemctl restart 3proxy
 
