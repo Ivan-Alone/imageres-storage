@@ -23,6 +23,8 @@
  * 2016-2019, Eugene Yudin <e.yudin@ndmsystems.com>
  *  - Dual Image support
  *  - "U-State" search
+ * 2023 (C)VIOLONIX inc.
+ * HardMap dual_image to first image
  */
 
 #define pr_fmt(fmt)				  KBUILD_MODNAME ": " fmt
@@ -42,10 +44,6 @@
 #include <linux/magic.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-
-#ifdef CONFIG_NMBM_MTD
-#include <linux/mtd/nmbm/nmbm-mtd.h>
-#endif /* CONFIG_NMBM_MTD */
 
 #ifdef MTD_NDM_PARTITION_UPDATE
 #include <linux/crc32.h>
@@ -102,20 +100,20 @@
 
 #define PART_SIZE_UNKNOWN		(~0)
 
+#if defined(CONFIG_FIRST_IF_MT7915) || \
+    defined(CONFIG_SECOND_IF_MT7915)
+/* MT7915 AX boards */
+#define PART_RF_EEPROM_AX_BOARD
+#endif
+
 #define PART_STORAGE_LEGACY		"Storage_Legacy"
 
 enum part {
 	/* Image 1 */
 #if defined(CONFIG_MACH_MT7622)
-	PART_ROM_HDR,
 	PART_PRELOADER,
 	PART_ATF,		/* ARM Trusted Firmware */
-#endif /* CONFIG_MACH_MT7622 */
-#if defined(CONFIG_MACH_MT7981) || \
-    defined(CONFIG_MACH_MT7986)
-	PART_ROM_HDR,
-	PART_PRELOADER,
-#endif /* CONFIG_MACH_MT7981 || CONFIG_MACH_MT7986 */
+#endif
 	PART_U_BOOT,
 	PART_U_CONFIG,
 	PART_RF_EEPROM,
@@ -178,124 +176,109 @@ static bool ndmpart_di_is_enabled;
 static struct part_dsc parts[PART_MAX] = {
 	/* Image 1 */
 #if defined(CONFIG_MACH_MT7622)
-	[PART_ROM_HDR] = {
-		.name		= "ROM-Header",
-		.read_only	= true
-	},
 	[PART_PRELOADER] = {
-		.name		= "Preloader",
+		name: "Preloader",
 #ifdef CONFIG_MTD_NDM_PRELOADER_UPDATE
-		.image		= preloader_bin,
-		.image_len	= &preloader_bin_len,
+		image: preloader_bin,
+		image_len: &preloader_bin_len,
 #endif
-		.read_only	= true
+		read_only: true
 	},
 	[PART_ATF] = {
-		.name		= "ATF",
+		name: "ATF",
 #ifdef CONFIG_MTD_NDM_ATF_UPDATE
-		.image		= atf_bin,
-		.image_len	= &atf_bin_len,
+		image: atf_bin,
+		image_len: &atf_bin_len,
 #endif
-		.read_only	= true
+		read_only: true
 	},
 #endif /* CONFIG_MACH_MT7622 */
-#if defined(CONFIG_MACH_MT7981) || \
-    defined(CONFIG_MACH_MT7986)
-	[PART_ROM_HDR] = {
-		.name		= "ROM-Header",
-		.read_only	= true
-	},
-	[PART_PRELOADER] = {
-		.name		= "Preloader",
-		.read_only	= true
-	},
-#endif /* CONFIG_MACH_MT7981 || CONFIG_MACH_MT7986 */
 	[PART_U_BOOT] = {
-		.name		= "U-Boot",
+		name: "U-Boot",
 #ifdef CONFIG_MTD_NDM_BOOT_UPDATE
-		.image		= boot_bin,
-		.image_len	= &boot_bin_len,
+		image: boot_bin,
+		image_len: &boot_bin_len,
 #endif
-		.read_only	= true
+		read_only: true
 	},
 	[PART_U_CONFIG] = {
-		.name		= "U-Config"
+		name: "U-Config"
 	},
 	[PART_RF_EEPROM] = {
-		.name		= "RF-EEPROM"
+		name: "RF-EEPROM"
 	},
 	[PART_KERNEL_1] = {
-		.name		= "Kernel",
-		.skip		= true,
-		.read_only	= true
+		name: "Kernel",
+		skip: true,
+		read_only: true
 	},
 	[PART_ROOTFS_1] = {
-		.name		= "RootFS",
-		.skip		= true,
-		.read_only	= true
+		name: "RootFS",
+		skip: true,
+		read_only: true
 	},
 	[PART_FIRMWARE_1] = {
-		.name		= "Firmware"
+		name: "Firmware"
 	},
 	[PART_CONFIG_1] = {
-		.name		= "Config"
+		name: "Config"
 	},
 	[PART_STORAGE] = {
-		.name		= "Storage",
-		.skip		= true
+		name: "Storage",
+		skip: true
 	},
 	[PART_DUMP] = {
-		.name		= "Dump",
-		.skip		= true
+		name: "Dump",
+		skip: true
 	},
 	[PART_STORAGE_A] = {
-		.name		= "Storage_A",
-		.skip		= true
+		name: "Storage_A",
+		skip: true
 	},
 	/* Image 2 */
 	[PART_U_STATE] = {
-		.name		= "U-State",
-		.skip		= true
+		name: "U-State",
+		skip: true
 	},
 	[PART_RESERVE] = {
-		.name		= "Reserve",
-		.skip		= true
+		name: "Reserve",
+		skip: true
 	},
 	[PART_U_CONFIG_RES] = {
-		.name		= "U-Config_res",
-		.skip		= true
+		name: "U-Config_res",
+		skip: true
 	},
 	[PART_RF_EEPROM_RES] = {
-		.name		= "RF-EEPROM_res",
-		.skip		= true
+		name: "RF-EEPROM_res",
+		skip: true
 	},
 	[PART_KERNEL_2] = {
-		.name		= "Kernel_2",
-		.skip		= true,
-		.read_only	= true
+		name: "Kernel_2",
+		skip: true,
+		read_only: true
 	},
 	[PART_ROOTFS_2] = {
-		.name		= "RootFS_2",
-		.skip		= true,
-		.read_only	= true
+		name: "RootFS_2",
+		skip: true,
+		read_only: true
 	},
 	[PART_FIRMWARE_2] = {
-		.name		= "Firmware_2",
-		.skip		= true
+		name: "Firmware_2",
+		skip: true
 	},
 	[PART_CONFIG_2] = {
-		.name		= "Config_2",
-		.skip		= true
+		name: "Config_2",
+		skip: true
 	},
 	[PART_STORAGE_B] = {
-		.name		= "Storage_B",
-		.skip		= true
+		name: "Storage_B",
+		skip: true
 	},
 	/* Pseudo */
 	[PART_FULL] = {
-		.name		= "Full",
-		.size		= MTDPART_SIZ_FULL,
-		.read_only	= true
+		name: "Full",
+		size: MTDPART_SIZ_FULL,
+		read_only: true
 	}
 };
 
@@ -304,10 +287,10 @@ static inline uint32_t parts_offset_end(enum part part)
 	return parts[part].offset + parts[part].size;
 }
 
-static unsigned int parts_num(void)
+static unsigned parts_num(void)
 {
 	int i;
-	unsigned int num = 0;
+	unsigned num = 0;
 
 	for (i = 0; i < PART_MAX; i++) {
 		if (parts[i].skip)
@@ -318,33 +301,46 @@ static unsigned int parts_num(void)
 	return num;
 }
 
-static uint32_t parts_size_default_get(enum part part,
-				       struct mtd_info *master)
+static uint32_t parts_size_default_get(enum part part, struct mtd_info *master)
 {
 	uint32_t size = PART_SIZE_UNKNOWN;
-	bool is_nor = master->type == MTD_NORFLASH;
 
 #if defined(CONFIG_MACH_MT7622)
+
+#ifdef PART_RF_EEPROM_AX_BOARD
+/* AX boards */
+#define PART_RF_EEPROM_SIZE_NOR		0x080000
+#define PART_RF_EEPROM_SIZE_NAND	0x100000
+#else
+/* AC boards */
+#define PART_RF_EEPROM_SIZE_NOR		0x020000
+#define PART_RF_EEPROM_SIZE_NAND	0x040000
+#endif
+
+	/*
+	 * Partitions size hardcoded in MTK uboot, see "mt7622_evb.h".
+	 * We now support NOR and SLC NAND layouts.
+	 * Todo: eMMC & SD layouts (with GPT) support.
+	 * Todo: MLC NAND layout support.
+	 */
 	switch (part) {
-	case PART_ROM_HDR:
-		size = master->erasesize;
-		break;
 	case PART_PRELOADER:
-		size = is_nor ? PART_BL2_SIZE_NOR : PART_BL2_SIZE_NAND;
-		/* subtract ROM header */
-		size -= master->erasesize;
+		size = (master->type == MTD_NORFLASH) ? 0x40000 : 0x80000;
 		break;
 	case PART_ATF:
-		size = is_nor ? PART_ATF_SIZE_NOR : PART_ATF_SIZE_NAND;
+		size = (master->type == MTD_NORFLASH) ? 0x20000 : 0x40000;
 		break;
 	case PART_U_BOOT:
-		size = is_nor ? PART_BOOT_SIZE_NOR : PART_BOOT_SIZE_NAND;
+		size = (master->type == MTD_NORFLASH) ? 0x40000 : 0x80000;
 		break;
 	case PART_U_CONFIG:
-		size = is_nor ? PART_ENV_SIZE_NOR : PART_ENV_SIZE_NAND;
+		size = (master->type == MTD_NORFLASH) ? 0x20000 : 0x80000;
 		break;
 	case PART_RF_EEPROM:
-		size = is_nor ? PART_E2P_SIZE_NOR : PART_E2P_SIZE_NAND;
+		if (master->type == MTD_NORFLASH)
+			size = PART_RF_EEPROM_SIZE_NOR;
+		else
+			size = PART_RF_EEPROM_SIZE_NAND;
 		break;
 	case PART_CONFIG_1:
 		size = master->erasesize * 4;
@@ -353,53 +349,15 @@ static uint32_t parts_size_default_get(enum part part,
 		size = master->erasesize;
 		break;
 	case PART_RESERVE:
-		size = is_nor ? PART_RSV_SIZE_NOR : PART_RSV_SIZE_NAND;
-		/* subtract U_STATE */
-		size -= master->erasesize;
-		break;
-	default:
-		break;
-	}
-#elif defined(CONFIG_MACH_MT7981) || \
-      defined(CONFIG_MACH_MT7986)
-	switch (part) {
-	case PART_ROM_HDR:
-		size = PART_HDR_SIZE;
-		break;
-	case PART_PRELOADER:
-		size = is_nor ? PART_BL2_SIZE_NOR : PART_BL2_SIZE_NAND;
-		/* subtract ROM header */
-		size -= PART_HDR_SIZE;
-		break;
-	case PART_U_BOOT:
-		size = is_nor ? PART_FIP_SIZE_NOR : PART_FIP_SIZE_NAND;
-		break;
-	case PART_U_CONFIG:
-		size = is_nor ? PART_ENV_SIZE_NOR : PART_ENV_SIZE_NAND;
-		break;
-	case PART_RF_EEPROM:
-		size = is_nor ? PART_E2P_SIZE_NOR : PART_E2P_SIZE_NAND;
-		break;
-	case PART_CONFIG_1:
-		size = master->erasesize * 4;
-		break;
-	case PART_U_STATE:
-		size = master->erasesize;
-		break;
-	case PART_RESERVE:
-		size = is_nor ? PART_RSV_SIZE_NOR : PART_RSV_SIZE_NAND;
-		/* subtract U_STATE */
-		size -= master->erasesize;
+		size = master->erasesize * 9;
 		break;
 	default:
 		break;
 	}
 #else
-	/* MIPS boards */
 	switch (part) {
 	case PART_U_BOOT:
-	case PART_U_STATE:
-		if (!is_nor)
+		if (master->type == MTD_NANDFLASH)
 #ifdef NAND_BB_MODE_SKIP
 			size = master->erasesize << 2;
 #else
@@ -408,14 +366,17 @@ static uint32_t parts_size_default_get(enum part part,
 		else
 			size = 3 * master->erasesize;
 		break;
+		
 	case PART_U_CONFIG:
 	case PART_RF_EEPROM:
 	case PART_CONFIG_1:
-		size = master->erasesize;
+	case PART_U_STATE:
 #ifdef NAND_BB_MODE_SKIP
-		if (!is_nor)
+		if (master->type == MTD_NANDFLASH)
 			size = master->erasesize << 2;
+		else
 #endif
+		size = master->erasesize;
 		break;
 	case PART_RESERVE:
 		size = 0;
@@ -426,7 +387,7 @@ static uint32_t parts_size_default_get(enum part part,
 
 #ifdef PART_RF_EEPROM_AX_BOARD
 	if (part == PART_RF_EEPROM) {
-		if (!is_nor)
+		if (master->type == MTD_NANDFLASH)
 #ifdef NAND_BB_MODE_SKIP
 			size = master->erasesize << 2;	/* 512K */
 #else
@@ -705,7 +666,7 @@ static uint32_t part_rootfs_offset(struct mtd_info *master,
 
 static inline int di_image_num_pair_get(int n)
 {
-	return (n == 1) ? 2 : 1;
+	return 1;
 }
 
 static int create_mtd_partitions(struct mtd_info *m,
@@ -721,16 +682,11 @@ static int create_mtd_partitions(struct mtd_info *m,
 #endif
 	uint32_t off, flash_size_lim;
 	struct mtd_partition *ndm_parts;
-	unsigned int ndm_parts_num;
-
-#ifdef CONFIG_NMBM_MTD
-	if (!is_nmbm_mtd(m))
-		return 0;
-#endif /* CONFIG_NMBM_MTD */
+	unsigned ndm_parts_num;
 
 	use_dump = use_storage = false;
 	if (CONFIG_MTD_NDM_DUMP_SIZE)
-		use_dump = true;
+		use_dump = false; //hard block dump (C)VIOLONIX
 	if (CONFIG_MTD_NDM_STORAGE_SIZE)
 		use_storage = true;
 
@@ -740,9 +696,6 @@ static int create_mtd_partitions(struct mtd_info *m,
 
 #if defined(CONFIG_MACH_MT7622)
 	/* Fill known fields */
-	parts[PART_ROM_HDR].size = parts_size_default_get(PART_ROM_HDR, m);
-
-	parts[PART_PRELOADER].offset = parts_offset_end(PART_ROM_HDR);
 	parts[PART_PRELOADER].size = parts_size_default_get(PART_PRELOADER, m);
 
 	parts[PART_ATF].offset = parts_offset_end(PART_PRELOADER);
@@ -750,17 +703,6 @@ static int create_mtd_partitions(struct mtd_info *m,
 
 	offs_uboot = parts_offset_end(PART_ATF);
 #endif /* CONFIG_MACH_MT7622 */
-
-#if defined(CONFIG_MACH_MT7981) || \
-    defined(CONFIG_MACH_MT7986)
-	/* Fill known fields */
-	parts[PART_ROM_HDR].size = parts_size_default_get(PART_ROM_HDR, m);
-
-	parts[PART_PRELOADER].offset = parts_offset_end(PART_ROM_HDR);
-	parts[PART_PRELOADER].size = parts_size_default_get(PART_PRELOADER, m);
-
-	offs_uboot = parts_offset_end(PART_PRELOADER);
-#endif /* CONFIG_MACH_MT7981 || CONFIG_MACH_MT7986 */
 
 	/* early fill partition info for NAND */
 	parts[PART_U_BOOT].offset = offs_uboot;
@@ -774,19 +716,20 @@ static int create_mtd_partitions(struct mtd_info *m,
 	if (ndmpart_di_is_enabled) {
 		int ret;
 
-		off_si = part_u_state_offset(m);
-		if (off_si < flash_size_lim) {
+		//off_si = part_u_state_offset(m);
+		/*if (off_si < flash_size_lim) {
 			pr_err("di: invalid flash size limit (0x%08x)\n",
 			       off_si);
 			return -EINVAL;
-		}
+		}*/
 
 		/* early fill partition info for NAND */
-		parts[PART_U_STATE].offset = off_si;
+		parts[PART_U_STATE].offset = flash_size_lim -
+					  parts_size_default_get(PART_U_STATE, m);
 		parts[PART_U_STATE].size = parts_size_default_get(PART_U_STATE, m);
 		parts[PART_U_STATE].skip = false;
 
-		ret = u_state_init(m, off_si, (uint32_t)parts[PART_U_STATE].size);
+		ret = u_state_init(m, parts[PART_U_STATE].offset, (uint32_t)parts[PART_U_STATE].size);
 		if (ret < 0)
 			return ret;
 
@@ -799,7 +742,7 @@ static int create_mtd_partitions(struct mtd_info *m,
 			ndmpart_image_cur = di_image_num_pair_get(boot_backup);
 
 		pr_info("di: active = %d, backup = %d, current = %d\n",
-			boot_active, boot_backup, ndmpart_image_cur);
+		        boot_active, boot_backup, ndmpart_image_cur);
 	}
 #endif
 
@@ -813,7 +756,7 @@ static int create_mtd_partitions(struct mtd_info *m,
 	parts[PART_RF_EEPROM].offset = parts_offset_end(PART_U_CONFIG);
 	parts[PART_RF_EEPROM].size = parts_size_default_get(PART_RF_EEPROM, m);
 
-	parts[PART_KERNEL_1].offset = parts_offset_end(PART_RF_EEPROM);
+	parts[PART_KERNEL_1].offset = 0x180000; //Hard for right NOR
 	parts[PART_FIRMWARE_1].offset = parts[PART_KERNEL_1].offset;
 
 	if (CONFIG_MTD_NDM_CONFIG_SIZE)
@@ -834,7 +777,7 @@ static int create_mtd_partitions(struct mtd_info *m,
 	}
 
 	/* Calculate & fill unknown fields */
-	if (use_dump && !use_storage) {
+/*	if (use_dump && !use_storage) {
 		parts[PART_CONFIG_1].offset = parts[PART_DUMP].offset -
 					      parts[PART_CONFIG_1].size;
 	} else if (!use_dump && use_storage) {
@@ -850,7 +793,11 @@ static int create_mtd_partitions(struct mtd_info *m,
 	} else {
 		parts[PART_CONFIG_1].offset = flash_size_lim -
 					      parts[PART_CONFIG_1].size;
-	}
+	}*/
+	
+//hard config
+	parts[PART_CONFIG_1].offset = parts[PART_U_STATE].offset -
+					      parts[PART_CONFIG_1].size;	
 
 #ifdef CONFIG_MTD_NDM_EXTENDED_STORAGE
 	if (m->size > flash_size_lim) {
@@ -900,23 +847,23 @@ static int create_mtd_partitions(struct mtd_info *m,
 		parts[PART_CONFIG_1].name = "Config_1";
 
 		/* U_STATE parts already calculated at this place */
-		parts[PART_RESERVE].offset = parts_offset_end(PART_U_STATE);
-		parts[PART_RESERVE].size = parts_size_default_get(PART_RESERVE, m);
+		parts[PART_RESERVE].offset = parts[PART_U_STATE].offset;
+		parts[PART_RESERVE].size = parts[PART_U_STATE].size;
 
 		parts[PART_U_CONFIG_RES].skip = false;
-		parts[PART_U_CONFIG_RES].offset = parts_offset_end(PART_RESERVE);
+		parts[PART_U_CONFIG_RES].offset = parts[PART_U_CONFIG].offset;
 		parts[PART_U_CONFIG_RES].size = parts[PART_U_CONFIG].size;
 
 		parts[PART_RF_EEPROM_RES].skip = false;
-		parts[PART_RF_EEPROM_RES].offset = parts_offset_end(PART_U_CONFIG_RES);
+		parts[PART_RF_EEPROM_RES].offset = parts[PART_RF_EEPROM].offset;
 		parts[PART_RF_EEPROM_RES].size = parts[PART_RF_EEPROM].size;
 
 		parts[PART_FIRMWARE_2].skip = false;
-		parts[PART_FIRMWARE_2].offset = parts_offset_end(PART_RF_EEPROM_RES);
+		parts[PART_FIRMWARE_2].offset = parts[PART_FIRMWARE_1].offset;
 		parts[PART_FIRMWARE_2].size = parts[PART_FIRMWARE_1].size;
 
 		parts[PART_CONFIG_2].skip = false;
-		parts[PART_CONFIG_2].offset = off_si + parts[PART_CONFIG_1].offset;
+		parts[PART_CONFIG_2].offset = parts[PART_CONFIG_1].offset;
 		parts[PART_CONFIG_2].size = parts[PART_CONFIG_1].size;
 
 		/* check PART_STORAGE_A fit to half size */
@@ -945,24 +892,14 @@ static int create_mtd_partitions(struct mtd_info *m,
 			s_size = parts[PART_FIRMWARE_2].size;
 
 			/* early fill partition info for NAND */
-			parts[PART_ROOTFS_2].offset = s_beg;
-			parts[PART_ROOTFS_2].size = s_size;
+			parts[PART_ROOTFS_2].offset = parts[PART_ROOTFS_1].offset;
+			parts[PART_ROOTFS_2].size = parts[PART_ROOTFS_1].size;
 			parts[PART_ROOTFS_2].skip = false;
+			
+			parts[PART_KERNEL_2].skip = false;
+			parts[PART_KERNEL_2].offset = parts[PART_KERNEL_1].offset;
+			parts[PART_KERNEL_2].size = parts[PART_KERNEL_1].size;
 
-			off = part_rootfs_offset(m, s_beg, s_size);
-			if (off) {
-				/* recalc KERNEL & ROOTFS partitions */
-				parts[PART_ROOTFS_2].offset = off;
-				parts[PART_ROOTFS_2].size = parts_offset_end(PART_FIRMWARE_2) -
-							    off;
-
-				parts[PART_KERNEL_2].skip = false;
-				parts[PART_KERNEL_2].offset = parts[PART_FIRMWARE_2].offset;
-				parts[PART_KERNEL_2].size = off - parts[PART_KERNEL_2].offset;
-			} else {
-				/* hide ROOTFS partition (error path) */
-				parts[PART_ROOTFS_2].skip = true;
-			}
 		}
 	}
 #endif
@@ -973,7 +910,7 @@ static int create_mtd_partitions(struct mtd_info *m,
 	/* Post actions */
 	ndm_parts_num = parts_num();
 
-	ndm_parts = kcalloc(ndm_parts_num, sizeof(*ndm_parts), GFP_KERNEL);
+	ndm_parts = kzalloc(sizeof(*ndm_parts) * ndm_parts_num, GFP_KERNEL);
 	if (ndm_parts == NULL)
 		return -ENOMEM;
 
@@ -997,8 +934,7 @@ static int create_mtd_partitions(struct mtd_info *m,
 }
 
 #ifdef NAND_BB_MODE_SKIP
-int get_partition_range(int blk, uint32_t bshift,
-			int *blk_start, int *blk_end)
+int get_partition_range(int blk, uint32_t bshift, int *blk_start, int *blk_end)
 {
 	int i, blk_end_last;
 	uint64_t offs, size;
@@ -1166,8 +1102,7 @@ static inline bool boot_active_is_valid(char c)
 	return c >= '0' && c <= '2';
 }
 
-static ssize_t boot_active_proc_write(struct file *file,
-				      const char __user *buffer,
+static ssize_t boot_active_proc_write(struct file *file, const char __user *buffer,
 				      size_t count, loff_t *pos)
 {
 	return boot_proc_write(buffer, count, DI_BOOT_ACTIVE,
@@ -1179,8 +1114,7 @@ static inline bool boot_backup_is_valid(char c)
 	return c >= '1' && c <= '2';
 }
 
-static ssize_t boot_backup_proc_write(struct file *file,
-				      const char __user *buffer,
+static ssize_t boot_backup_proc_write(struct file *file, const char __user *buffer,
 				      size_t count, loff_t *pos)
 {
 	return boot_proc_write(buffer, count, DI_BOOT_BACKUP,
@@ -1193,8 +1127,7 @@ static inline bool boot_fails_is_valid(char c)
 	return c >= '0' && c <= '2';
 }
 
-static ssize_t boot_fails_proc_write(struct file *file,
-				     const char __user *buffer,
+static ssize_t boot_fails_proc_write(struct file *file, const char __user *buffer,
 				     size_t count, loff_t *pos)
 {
 	return boot_proc_write(buffer, count, DI_BOOT_FAILS,
@@ -1253,23 +1186,23 @@ static int __init ndm_parser_init(void)
 		proc_dir = proc_mkdir("dual_image", NULL);
 		BUG_ON(proc_dir == NULL);
 
-		entry = proc_create(DI_BOOT_ACTIVE, 0644, proc_dir,
-				    &fops_boot_active);
+		entry = proc_create(DI_BOOT_ACTIVE, S_IRUGO | S_IWUSR, proc_dir,
+			&fops_boot_active);
 		BUG_ON(entry == NULL);
 
-		entry = proc_create(DI_BOOT_BACKUP, 0644, proc_dir,
-				    &fops_boot_backup);
+		entry = proc_create(DI_BOOT_BACKUP, S_IRUGO | S_IWUSR, proc_dir,
+			&fops_boot_backup);
 		BUG_ON(entry == NULL);
 
-		entry = proc_create("boot_current", 0644, proc_dir,
-				    &fops_boot_current);
+		entry = proc_create("boot_current", S_IRUGO | S_IWUSR, proc_dir,
+			&fops_boot_current);
 		BUG_ON(entry == NULL);
 
-		entry = proc_create(DI_BOOT_FAILS, 0644, proc_dir,
-				    &fops_boot_fails);
+		entry = proc_create(DI_BOOT_FAILS, S_IRUGO | S_IWUSR, proc_dir,
+			&fops_boot_fails);
 		BUG_ON(entry == NULL);
 
-		entry = proc_create("commit", 0200, proc_dir, &fops_commit);
+		entry = proc_create("commit", S_IWUSR, proc_dir, &fops_commit);
 		BUG_ON(entry == NULL);
 	}
 #endif
@@ -1304,7 +1237,15 @@ static int u_state_init(struct mtd_info *m, uint32_t off, uint32_t size)
 	}
 
 	if (ntohl(u_state.magic) != DI_U_STATE_MAGIC) {
-		pr_err("di: unknown magic 0x%08x\n", ntohl(u_state.magic));
+		pr_err("di: unknown magic 0x%08x\ntry to repair and reboot\n", ntohl(u_state.magic));
+		//try repair u_state
+		u_state.magic = ntohl(DI_U_STATE_MAGIC);
+		u_state.version = DI_U_STATE_VERSION;
+		u_state_set(DI_BOOT_ACTIVE, 1);
+		u_state_set(DI_BOOT_BACKUP, 1);
+		u_state_set(DI_BOOT_FAILS, 0);
+		u_state_commit();
+		
 		return -EINVAL;
 	}
 
@@ -1321,14 +1262,15 @@ static int u_state_get(const char *name, int *val)
 	if (name == NULL || val == NULL)
 		return -EINVAL;
 
-	if (!strcmp(name, DI_BOOT_ACTIVE))
+	if (!strcmp(name, DI_BOOT_ACTIVE)) {
 		*val = u_state.boot_active;
-	else if (!strcmp(name, DI_BOOT_BACKUP))
+	} else if (!strcmp(name, DI_BOOT_BACKUP)) {
 		*val = u_state.boot_backup;
-	else if (!strcmp(name, DI_BOOT_FAILS))
+	} else if (!strcmp(name, DI_BOOT_FAILS)) {
 		*val = u_state.boot_fails;
-	else
+	} else {
 		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -1338,14 +1280,15 @@ static int u_state_set(const char *name, int val)
 	if (name == NULL)
 		return -EINVAL;
 
-	if (!strcmp(name, DI_BOOT_ACTIVE))
+	if (!strcmp(name, DI_BOOT_ACTIVE)) {
 		u_state.boot_active = val;
-	else if (!strcmp(name, DI_BOOT_BACKUP))
+	} else if (!strcmp(name, DI_BOOT_BACKUP)) {
 		u_state.boot_backup = val;
-	else if (!strcmp(name, DI_BOOT_FAILS))
+	} else if (!strcmp(name, DI_BOOT_FAILS)) {
 		u_state.boot_fails = val;
-	else
+	} else {
 		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -1393,31 +1336,17 @@ static int u_state_commit(void)
 	return ret;
 }
 
+#ifdef CONFIG_MIPS
 static bool di_is_enabled(void)
 {
-#if IS_ENABLED(CONFIG_VIRTIO) && IS_ENABLED(CONFIG_MTD_BLOCK2MTD)
 	return true;
-#elif defined(CONFIG_OF_FLATTREE)
-	const unsigned char *val;
-	void *fdt = initial_boot_params;
-	const int off = fdt_path_offset(fdt, "/chosen");
-
-	if (off < 0)
-		return false;
-
-	val = fdt_getprop(fdt, off, "dualimage", NULL);
-	if (val	&& *val)
-		return true;
-
-#elif defined(CONFIG_MIPS)
-	extern int env_dual_image;
-
-	if (env_dual_image > 0)
-		return true;
-#endif
-
-	return false;
 }
+#else
+static bool di_is_enabled(void)
+{
+	return true;
+}
+#endif /* CONFIG_MIPS */
 #endif
 
 module_init(ndm_parser_init);
@@ -1425,5 +1354,6 @@ module_exit(ndm_parser_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alexander Papenko <ap@ndmsystems.com>, "
-		"Eugene Yudin <e.yudin@ndmsystems.com>");
+		"Eugene Yudin <e.yudin@ndmsystems.com>,"
+		"(C)VIOLONIX inc.");
 MODULE_DESCRIPTION("MTD partitioning for NDM devices");
