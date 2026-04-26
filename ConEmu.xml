@@ -265,7 +265,7 @@
 			<value name="FadeInactiveLow" type="hex" data="00"/>
 			<value name="FadeInactiveHigh" type="hex" data="D0"/>
 			<value name="ConVisible" type="hex" data="00"/>
-			<value name="SetDefaultTerminal" type="hex" data="01"/>
+			<value name="SetDefaultTerminal" type="hex" data="00"/>
 			<value name="SetDefaultTerminalStartup" type="hex" data="00"/>
 			<value name="SetDefaultTerminalStartupTSA" type="hex" data="00"/>
 			<value name="DefaultTerminalAgressive" type="hex" data="01"/>
