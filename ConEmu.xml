@@ -398,7 +398,7 @@
 			<value name="CTS.ResetOnRelease" type="hex" data="00"/>
 			<value name="CTS.IBeam" type="hex" data="01"/>
 			<value name="CTS.EndOnTyping" type="hex" data="02"/>
-			<value name="CTS.EndOnKeyPress" type="hex" data="00"/>
+			<value name="CTS.EndOnKeyPress" type="hex" data="01"/>
 			<value name="CTS.EraseBeforeReset" type="hex" data="01"/>
 			<value name="CTS.Freeze" type="hex" data="00"/>
 			<value name="CTS.SelectBlock" type="hex" data="01"/>
